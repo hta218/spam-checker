@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+<link rel="stylesheet"
+      href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/styles/a11y-dark.min.css">
+
+    <title>Hide post comments!</title>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Hide post comments</h1>
+<form>
+  <div class="form-group">
+    <label for="exampleInputEmail1">Facebook token*</label>
+    <input type="text" required="required" class="form-control" value="" id="txtToken">
+    <small id="emailHelp" class="form-text text-muted">How to get token: <a href="https://han-tools.com/fb-ca/access-token-how" target="_blank">See how</a>.</small>
+  </div>
+  <div class="form-group">
+    <label for="exampleInputPassword1">Post ID*</label>
+    <input type="number" required="required" value="" class="form-control" id="txtPostID">
+  </div>
+  <button id="btn_start" type="submit" class="btn btn-primary">Start</button>
+</form>
+<hr>
+<pre id="log"><code class="plaintext">
+  --------------Anti comment dao----------------
+  ------------------By LPDT---------------------
+</code></pre>
+    </div>
+    
+
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.18.1/highlight.min.js"></script>
+  <script>
+  window.fbAsyncInit = function() {
+    FB.init({
+      appId            : '',
+      autoLogAppEvents : true,
+      xfbml            : true,
+      version          : 'v6.0'
+    });
+
+
+       $(document).ready(function(){
+         
+          
+       // loadcomments();
+       
+       })
+
+
+  };
+</script>
+<script async defer src="https://connect.facebook.net/en_US/sdk.js"></script>
+
+
+    <script>
+      var comments = [];
+      var access_token = '';
+      var postID= '';
+      var after ='';
+      var page = 1;
+     function Llog(message=''){
+         $('#log code').append(message+'\n');
+
+     }
+
+      $(function(){
+        $('form').submit(function(e){e.preventDefault()})
+
+        hljs.initHighlightingOnLoad();
+            $('#btn_start').click(function(e){
+                access_token = $('#txtToken').val();
+                postID= $('#txtPostID').val();
+                if(access_token==''||postID=='') return;
+
+
+            //get Page 
+
+             FB.api(
+              '/'+postID,
+              'GET',
+              {"fields":"from", "access_token":access_token},
+              function(response) {
+                  if(response.error) {Llog('Error :'+response.error.message); return;}
+                  
+                  //get Page Token
+                  Llog('Getting page token ...')
+                  FB.api(
+                      '/'+response.from.id,
+                      'GET',
+                      {"fields":"access_token,name","access_token":access_token},
+                      function(e){
+                          if(e.error) {'Error :'+Llog(e.error.message); return;}
+                          Llog('Page:'+e.name);
+                          Llog('Scanning comments...');
+                          access_token= e.access_token;
+                          loadcomments();
+
+
+                      }
+                    );
+              }
+            );
+
+            })
+
+      })
+      function loadcomments(){
+        
+          FB.api(
+              '/'+postID+'/comments',
+              'GET',
+              {"fields":"can_hide,is_hidden",'limit':100,'after':after, "access_token":access_token},
+              function(response) {
+                 
+                  for(let cmt of response.data){
+                    if(!cmt.is_hidden) comments.push(cmt.id);
+                  }
+
+                  Llog('Page '+page+' has '+response.data.length+' comments. Hidding '+comments.length);
+                 after = (response.paging&&response.paging.cursors.after)?response.paging.cursors.after:'';
+               hide_comments();
+              }
+            );
+
+          
+      }
+
+       function hide_comments(){
+           if(comments.length==0) {
+              if(after!=''){
+                console.log('next page..');
+                 page++;
+                loadcomments(); return;
+              }
+              else 
+
+
+                alert('done');
+               Llog('done');
+               //reset
+               page = 1;
+               after ='';
+
+            return}
+
+           let cID = comments.shift();
+           FB.api(
+              '/'+cID,
+              'POST',
+              {"is_hidden":"true",'access_token':access_token},
+              function(response) {
+                   Llog('Comment: '+cID+' - hide:'+response.success);
+                   hide_comments();
+              }
+            );
+
+       }
+    
+         
+    </script>
+
+   
+
+  </body>
+</html>
