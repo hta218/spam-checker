@@ -25,10 +25,15 @@
     <label for="exampleInputPassword1">Post ID*</label>
     <input type="number" required="required" value="" class="form-control" id="txtPostID">
   </div>
+
+   <div class="form-group">
+    <label for="exampleInputPassword1">Recheck interval:</label>
+    <input type="checkbox" checked="true" id="autohide">  <br>Seconds:<input type="number" min="60" required="required" value="120" class="form-control" id="txtTime">
+  </div> 
   <button id="btn_start" type="submit" class="btn btn-primary">Start</button>
 </form>
 <hr>
-<pre id="log"><code class="plaintext">
+<pre id="log" style="height: 350px;overflow: scroll;"><code class="plaintext">
   --------------Anti comment dao----------------
   ------------------By LPDT---------------------
 </code></pre>
@@ -73,11 +78,19 @@
       var page = 1;
      function Llog(message=''){
          $('#log code').append(message+'\n');
-
+         var objDiv = document.getElementById("log");
+          objDiv.scrollTop = objDiv.scrollHeight;
      }
 
       $(function(){
         $('form').submit(function(e){e.preventDefault()})
+
+        $('#txtToken').change(function(){
+         if($(this).val()!='') createCookie('accessToken', $(this).val()) ;
+
+
+       });
+        $('#txtToken').val(getCookie('accessToken'));
 
         hljs.initHighlightingOnLoad();
             $('#btn_start').click(function(e){
@@ -122,16 +135,23 @@
           FB.api(
               '/'+postID+'/comments',
               'GET',
-              {"fields":"can_hide,is_hidden",'limit':100,'after':after, "access_token":access_token},
+              {"fields":"can_hide,is_hidden,message,comments{comments,message,can_hide,is_hidden,from}",'limit':100,'after':after, "access_token":access_token},
               function(response) {
                  
-                  for(let cmt of response.data){
-                    if(!cmt.is_hidden) comments.push(cmt.id);
+                     for(let cmt of response.data){
+                    if(!cmt.is_hidden && cmt.can_hide) comments.push([cmt.id,'hide',cmt.message]);
+                    if(cmt.comments){
+                        for(let subcmt of cmt.comments.data) {
+                        if(!subcmt.is_hidden && subcmt.can_hide && subcmt.message.match(/\w{4}\.\w{2,5}\//))  comments.push([subcmt.id,'delete',subcmt.message]);          
+                      }  
+                    }
+                    
+                  
                   }
 
-                  Llog('Page '+page+' has '+response.data.length+' comments. Hidding '+comments.length);
+                  Llog('Page '+page+' has '+response.data.length+' comments. Processing '+comments.length);
                  after = (response.paging&&response.paging.cursors.after)?response.paging.cursors.after:'';
-               hide_comments();
+                 hide_comments();
               }
             );
 
@@ -148,26 +168,77 @@
               else 
 
 
-                alert('done');
+               
                Llog('done');
                //reset
                page = 1;
                after ='';
 
+                 if($('#autohide:checkbox:checked').length==1){
+                
+                   let intTime = parseInt( $('#txtTime').val());
+                   let date = new Date();
+                  Llog(date.getHours()+':'+date.getMinutes()+'| Recheck in '+intTime+' seconds...')
+                   intTime = (intTime<60)?60*1000:intTime*1000;
+
+                   setTimeout(loadcomments,intTime);
+                 }
+
             return}
 
            let cID = comments.shift();
+          if(cID[1]=='hide')
            FB.api(
-              '/'+cID,
+              '/'+cID[0],
               'POST',
               {"is_hidden":"true",'access_token':access_token},
               function(response) {
-                   Llog('Comment: '+cID+' - hide:'+response.success);
+                   Llog('Comment: '+cID[2]+' - Hide:'+response.success);
                    hide_comments();
+              }
+            );
+         else 
+          FB.api(
+              '/'+cID[0],
+              'DELETE',
+              {'access_token':access_token},
+              function(response) {
+                   Llog('Comment: '+cID[2]+' - Delete:'+response.success);
+                  hide_comments();
               }
             );
 
        }
+
+
+       function createCookie(name, value, days =365) {
+    var expires;
+    if (days) {
+        var date = new Date();
+        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+        expires = "; expires=" + date.toGMTString();
+    }
+    else {
+        expires = "";
+    }
+    document.cookie = name + "=" + value + expires + "; path=/";
+}
+
+function getCookie(c_name) {
+    if (document.cookie.length > 0) {
+        c_start = document.cookie.indexOf(c_name + "=");
+        if (c_start != -1) {
+            c_start = c_start + c_name.length + 1;
+            c_end = document.cookie.indexOf(";", c_start);
+            if (c_end == -1) {
+                c_end = document.cookie.length;
+            }
+            return unescape(document.cookie.substring(c_start, c_end));
+        }
+    }
+    return "";
+}
+    
     
          
     </script>
