@@ -142,7 +142,7 @@
                     if(!cmt.is_hidden && cmt.can_hide) comments.push([cmt.id,'hide',cmt.message]);
                     if(cmt.comments){
                         for(let subcmt of cmt.comments.data) {
-                        if(!subcmt.is_hidden && subcmt.can_hide && subcmt.message.match(/\w{4}\.\w{2,5}\//))  comments.push([subcmt.id,'delete',subcmt.message]);          
+                        if(!subcmt.is_hidden && subcmt.can_hide && subcmt.message.match(/\w{1,20}\.\w{1,5}\//))  comments.push([subcmt.id,'delete',subcmt.message]);          
                       }  
                     }
                     
