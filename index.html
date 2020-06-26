@@ -20,20 +20,25 @@
     <label for="exampleInputEmail1">Facebook token*</label>
     <input type="text" required="required" class="form-control" value="" id="txtToken">
     <small id="emailHelp" class="form-text text-muted">How to get token: <a href="https://han-tools.com/fb-ca/access-token-how" target="_blank">See how</a>.</small>
+
   </div>
   <div class="form-group">
-    <label for="exampleInputPassword1">Post ID*</label>
-    <input type="number" required="required" value="" class="form-control" id="txtPostID">
+    <label for="exampleInputPassword1">Page IDs*</label>
+    <small id="emailHelp" class="form-text text-muted">Comma Separated List (e.g. 12321323,432434234)</small>
+    <textarea required="required" value="" class="form-control" id="txtPageID"></textarea> 
+    <div id="pageList"></div>
   </div>
 
-   <div class="form-group">
+
+  <div class="form-group">
     <label for="exampleInputPassword1">Recheck interval:</label>
     <input type="checkbox" checked="true" id="autohide">  <br>Seconds:<input type="number" min="60" required="required" value="120" class="form-control" id="txtTime">
   </div> 
+
   <button id="btn_start" type="submit" class="btn btn-primary">Start</button>
 </form>
 <hr>
-<pre id="log" style="height: 350px;overflow: scroll;"><code class="plaintext">
+<pre id="log" style="height: 350px;overflow-y: scroll;"><code class="plaintext">
   --------------Anti comment dao----------------
   ------------------By LPDT---------------------
 </code></pre>
@@ -57,14 +62,6 @@
     });
 
 
-       $(document).ready(function(){
-         
-          
-       // loadcomments();
-       
-       })
-
-
   };
 </script>
 <script async defer src="https://connect.facebook.net/en_US/sdk.js"></script>
@@ -73,76 +70,148 @@
     <script>
       var comments = [];
       var access_token = '';
+      var postIDs = [];
+      var pageIDs = [];
+      var pageID ='';
+      var pageName ='';
       var postID= '';
       var after ='';
       var page = 1;
+      var noti_checked = [];
+      myStorage = window.localStorage;
      function Llog(message=''){
          $('#log code').append(message+'\n');
          var objDiv = document.getElementById("log");
           objDiv.scrollTop = objDiv.scrollHeight;
+
      }
 
       $(function(){
         $('form').submit(function(e){e.preventDefault()})
+      if(!myStorage.getItem('noti_checked')) myStorage.setItem('noti_checked',[0]);
+      noti_checked = myStorage.getItem('noti_checked').split(',');
 
-        $('#txtToken').change(function(){
-         if($(this).val()!='') createCookie('accessToken', $(this).val()) ;
+      console.log(noti_checked);
+
+ 
+       $('#txtToken').change(function(){
+           if($(this).val()!='') myStorage.setItem('accessToken', $(this).val()) ;
 
 
-       });
-        $('#txtToken').val(getCookie('accessToken'));
+         });
+        $('#txtToken').val(myStorage.getItem('accessToken'));
+      
+       $('#txtPageID').change(function(){
+           if($(this).val()!='') myStorage.setItem('postIDs', $(this).val()) ;
+
+
+         });
+        $('#txtPageID').val(myStorage.getItem('postIDs'));
 
         hljs.initHighlightingOnLoad();
-            $('#btn_start').click(function(e){
-                access_token = $('#txtToken').val();
-                postID= $('#txtPostID').val();
-                if(access_token==''||postID=='') return;
+
+        $('#btn_start').click(function(e){
+            access_token = $('#txtToken').val();
+            
+            if(pageIDs.length==0) {
+              $('#pageList').html('');
+              pageIDs=  $('#txtPageID').val().split(',');
+              pageIDs = pageIDs.filter(function(item, pos) {
+                  return pageIDs.indexOf(item) == pos;
+              })
+
+          }
+            pageID = pageIDs.shift().trim();
+            if(access_token==''||pageID=='') return;
+            FB.api(
+              '/'+pageID,
+                'GET',
+                {"fields":"access_token,name", "access_token":access_token},
+                function(response) {
+                    if(response.error) {Llog('Error :'+response.error.message); return;}
+                    
+                    //get Page Token
+                    Llog('Page '+response.name+' loaded.');
+
+                    $('#pageList').append(response.name+'>'+pageID+',');
+                    pageName =response.name;
+                    access_token = response.access_token;
+                    FB.api(
+                        '/'+pageID+'/notifications',
+                        'GET',
+                        {"fields":"object",'limit':100,"access_token":access_token},
+                        function(e){
+                            if(e.error) {'Error : '+pageID+' '+Llog(e.error.message); return;}
+                           
+                             Llog('Scanning comments...');
+
+                             for(let noti of e.data){
+                                 if(noti.object.id!= pageID && postIDs.indexOf(noti.object.id)==-1 && noti_checked.indexOf(noti.id)==-1){ 
+
+                                  let objectID = (noti.object.id.indexOf('_')!=-1)?noti.object.id.split('_')[1]:noti.object.id;
+                                  postIDs.push(objectID); noti_checked.push(noti.id); myStorage.setItem('noti_checked',noti_checked);
+                                   }
+                             }
 
 
-            //get Page 
 
-             FB.api(
-              '/'+postID,
-              'GET',
-              {"fields":"from", "access_token":access_token},
-              function(response) {
-                  if(response.error) {Llog('Error :'+response.error.message); return;}
-                  
-                  //get Page Token
-                  Llog('Getting page token ...')
-                  FB.api(
-                      '/'+response.from.id,
-                      'GET',
-                      {"fields":"access_token,name","access_token":access_token},
-                      function(e){
-                          if(e.error) {'Error :'+Llog(e.error.message); return;}
-                          Llog('Page:'+e.name);
-                          Llog('Scanning comments...');
-                          access_token= e.access_token;
-                          loadcomments();
+                            Llog(JSON.stringify(postIDs));
+                            processComments();
+                            //access_token= e.access_token;
+                            //loadcomments();
 
 
-                      }
-                    );
-              }
-            );
+                        }
+                      );
+                }
+              );
 
-            })
+        });
+
+
+
 
       })
+
+
+      function processComments(){
+
+              if(postIDs.length==0) {
+
+                    if(pageIDs.length>0){  $('#btn_start').click(); return }
+
+                  if($('#autohide:checkbox:checked').length==1){
+                      
+                         let intTime = parseInt( $('#txtTime').val());
+                         let date = new Date();
+                         Llog(date.getHours()+':'+date.getMinutes()+'| Recheck in '+intTime+' seconds...')
+                         intTime = (intTime<60)?60*1000:intTime*1000;
+
+                         setTimeout(function(){  $('#btn_start').click()},intTime);
+                       }
+
+                  return
+            };
+                postID = postIDs.shift();
+
+                 Llog('Page:'+pageName+' | Post:' + postID);
+                 Llog('Scanning comments...');
+                loadcomments();
+      }
+
       function loadcomments(){
-        
+  
           FB.api(
               '/'+postID+'/comments',
               'GET',
               {"fields":"can_hide,is_hidden,message,comments{comments,message,can_hide,is_hidden,from}",'limit':100,'after':after, "access_token":access_token},
               function(response) {
                  
-                     for(let cmt of response.data){
+                  for(let cmt of response.data){
                     if(!cmt.is_hidden && cmt.can_hide) comments.push([cmt.id,'hide',cmt.message]);
                     if(cmt.comments){
                         for(let subcmt of cmt.comments.data) {
-                        if(!subcmt.is_hidden && subcmt.can_hide && subcmt.message.match(/\w{1,20}\.\w{1,5}\//))  comments.push([subcmt.id,'delete',subcmt.message]);          
+                        if(!subcmt.is_hidden && subcmt.can_hide && subcmt.message.match(/\w{1,63}\.\w{1,5}\//))  comments.push([subcmt.id,'delete',subcmt.message]);          
                       }  
                     }
                     
@@ -150,15 +219,16 @@
                   }
 
                   Llog('Page '+page+' has '+response.data.length+' comments. Processing '+comments.length);
-                 after = (response.paging&&response.paging.cursors.after)?response.paging.cursors.after:'';
+                 after = (response.paging&&response.paging.cursors.after&&response.data.length>98)?response.paging.cursors.after:'';
                  hide_comments();
               }
             );
+        }
+      
 
-          
-      }
 
        function hide_comments(){
+        
            if(comments.length==0) {
               if(after!=''){
                 console.log('next page..');
@@ -168,26 +238,18 @@
               else 
 
 
-               
+               // alert('done');
                Llog('done');
                //reset
                page = 1;
                after ='';
-
-                 if($('#autohide:checkbox:checked').length==1){
-                
-                   let intTime = parseInt( $('#txtTime').val());
-                   let date = new Date();
-                  Llog(date.getHours()+':'+date.getMinutes()+'| Recheck in '+intTime+' seconds...')
-                   intTime = (intTime<60)?60*1000:intTime*1000;
-
-                   setTimeout(loadcomments,intTime);
-                 }
-
-            return}
+             
+               processComments(); return 
+                 
+          }
 
            let cID = comments.shift();
-          if(cID[1]=='hide')
+           if(cID[1]=='hide')
            FB.api(
               '/'+cID[0],
               'POST',
@@ -207,43 +269,11 @@
                   hide_comments();
               }
             );
-
        }
 
 
-       function createCookie(name, value, days =365) {
-    var expires;
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toGMTString();
-    }
-    else {
-        expires = "";
-    }
-    document.cookie = name + "=" + value + expires + "; path=/";
-}
-
-function getCookie(c_name) {
-    if (document.cookie.length > 0) {
-        c_start = document.cookie.indexOf(c_name + "=");
-        if (c_start != -1) {
-            c_start = c_start + c_name.length + 1;
-            c_end = document.cookie.indexOf(";", c_start);
-            if (c_end == -1) {
-                c_end = document.cookie.length;
-            }
-            return unescape(document.cookie.substring(c_start, c_end));
-        }
-    }
-    return "";
-}
-    
-    
+   
          
     </script>
-
-   
-
   </body>
 </html>
