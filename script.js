@@ -3,6 +3,7 @@ window.addEventListener("load", function () {
 		console.log('App script loaded')
 		const app = new App()
 		app.init()
+		window.__spamChecker = app
 	})();
 })
 
@@ -22,13 +23,13 @@ class App {
 
 	constructor() {
 		this.data.postIds = Array.from(new Set(this.data?.postIds?.split(',')))
-		this.init()
 	}
 
 	init = () => {
 		try {
 			this.getDataFromLocalStorage()
 			this.domNodes.start.click(() => {
+				console.log('====> click')
 				this.data = {
 					...this.data,
 					accessToken: this.domNodes.accessToken.val(),
@@ -54,7 +55,10 @@ class App {
 	}
 
 	getDataFromLocalStorage = () => {
-		this.data = JSON.parse(localStorage.getItem(this.storageKey)) || {}
+		this.data = {
+			...this.data,
+			...JSON.parse(localStorage.getItem(this.storageKey)) || {}
+		}
 		this.domNodes.accessToken.val(this.data.accessToken || "")
 		this.domNodes.pageId.val(this.data.pageId || "")
 		this.domNodes.postIds.val(this.data?.postIds?.join?.(','))
@@ -63,7 +67,7 @@ class App {
 	getFacebookPageAccessToken = () => {
 		return new Promise((resolve, reject) => {
 			FB.api(
-				`/${this.data.pageId}_${this.data.postIds[0]}`,
+				`/${this.data.pageId}`,
 				"GET",
 				{ fields: "access_token", access_token: this.data.accessToken },
 				(res) => {
@@ -86,7 +90,7 @@ class App {
 				{
 					fields: "can_hide, is_hidden, message, comments { comments, message, can_hide, is_hidden, from }",
 					// after: after,
-					access_token: this.data.accessToken
+					access_token: this.data.pageToken
 				},
 				(res) => {
 					if (res.error) {
@@ -97,7 +101,7 @@ class App {
 						comments: []
 					}
 
-					this.data.posts?.[postId]?.comments?.push(res?.comments?.data)
+					this.data.posts?.[postId]?.comments?.push(res?.data)
 					console.log(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
 					for (let cmt of res.data) {
 						// if (!cmt.is_hidden && cmt.can_hide)
