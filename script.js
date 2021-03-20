@@ -1,6 +1,6 @@
 window.addEventListener("load", function () {
 	(function () {
-		console.log('App script loaded')
+		console.log('App script loaded v1')
 		const app = new App()
 		app.init()
 	})();
