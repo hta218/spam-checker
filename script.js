@@ -21,6 +21,7 @@ class App {
 	}
 
 	constructor() {
+		console.log('App data: ', this.data)
 		this.data.postIds = Array.from(new Set(this.data?.postIds?.split(',')))
 		this.init()
 	}
