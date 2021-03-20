@@ -1,6 +1,6 @@
 window.addEventListener("load", function () {
 	(function () {
-		console.log('App script loaded v1')
+		console.log('App script loaded')
 		const app = new App()
 		app.init()
 	})();
@@ -8,27 +8,33 @@ window.addEventListener("load", function () {
 
 class App {
 	domNodes = {
+		start: $('#start'),
 		accessToken: $('#token'),
 		pageId: $('#page-id'),
 		postIds: $('#post-ids'),
 	}
 	data = {
-		accessToken: this.domNodes.accessToken.val(),
-		pageId: this.domNodes.pageId.val(),
-		postIds: this.domNodes.postIds.val(),
 		pageToken: '',
 		posts: {}
 	}
 
 	constructor() {
-		console.log('App data: ', this.data)
 		this.data.postIds = Array.from(new Set(this.data?.postIds?.split(',')))
 		this.init()
 	}
 
 	init = () => {
 		try {
-			this.run()
+			this.domNodes.start.click(() => {
+				this.data = {
+					...this.data,
+					accessToken: this.domNodes.accessToken.val(),
+					pageId: this.domNodes.pageId.val(),
+					postIds: this.domNodes.postIds.val(),
+				}
+				console.log('App data: ', this.data)
+				this.run()
+			})
 		} catch (err) {
 			console.log('Failed to init app. ', err)
 		}
