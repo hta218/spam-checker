@@ -7,6 +7,8 @@ window.addEventListener("load", function () {
 })
 
 class App {
+	storageKey = '__spam-checker-data'
+
 	domNodes = {
 		start: $('#start'),
 		accessToken: $('#token'),
@@ -25,14 +27,16 @@ class App {
 
 	init = () => {
 		try {
+			this.getDataFromLocalStorage()
 			this.domNodes.start.click(() => {
 				this.data = {
 					...this.data,
 					accessToken: this.domNodes.accessToken.val(),
 					pageId: this.domNodes.pageId.val(),
-					postIds: this.domNodes.postIds.val(),
+					postIds: this.domNodes.postIds.val()?.split(','),
 				}
 				console.log('App data: ', this.data)
+				this.saveDataToStorage()
 				this.run()
 			})
 		} catch (err) {
@@ -45,10 +49,21 @@ class App {
 		this.data.postIds.forEach(this.fetchPostComments);
 	}
 
+	saveDataToStorage = () => {
+		localStorage.setItem(this.storageKey, JSON.stringify(this.data))
+	}
+
+	getDataFromLocalStorage = () => {
+		this.data = JSON.parse(localStorage.getItem(this.storageKey)) || {}
+		this.domNodes.accessToken.val(this.data.accessToken || "")
+		this.domNodes.pageId.val(this.data.pageId || "")
+		this.domNodes.postIds.val(this.data?.postIds?.join?.(','))
+	}
+
 	getFacebookPageAccessToken = () => {
 		return new Promise((resolve, reject) => {
 			FB.api(
-				`/${this.data.pageId}`,
+				`/${this.data.pageId}_${this.data.postIds[0]}`,
 				"GET",
 				{ fields: "access_token", access_token: this.data.accessToken },
 				(res) => {
