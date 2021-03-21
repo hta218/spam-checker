@@ -16,6 +16,7 @@ class App {
 		postIds: $('#post-ids'),
 		safeList: $('#safe-domains'),
 		log: $('#log code'),
+		restartTime: $('#restart-time'),
 	}
 	data = {
 		pageToken: '',
@@ -37,6 +38,7 @@ class App {
 					pageId: this.domNodes.pageId.val(),
 					postIds: this.domNodes.postIds.val()?.split(','),
 					safeList: this.domNodes.safeList.val()?.split(','),
+					restartTime: Number(this.domNodes.restart-time.val()),
 				}
 				console.log('App data: ', this.data)
 				this.saveDataToStorage()
@@ -54,6 +56,7 @@ class App {
 
 		const scanCommentsPromises = this.data.postIds.map(this.scanPostComments);
 		await Promise.all(scanCommentsPromises)
+		setTimeout(this.run, this.data.restartTime * 1000)
 	}
 
 	showLog = (log) => {
@@ -134,7 +137,6 @@ class App {
 			const comments = this.data.posts?.[postId]?.comments || []
 			const promises = comments.map(async cmt => {
 				// this.showLog('Checking comment: ', cmt.id)
-				debugger
 				if (!cmt.is_hidden && cmt.can_hide) {
 					if (this.isCommentSpam(cmt)) {
 						await this.hideComment(cmt)
