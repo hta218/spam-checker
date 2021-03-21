@@ -1,6 +1,5 @@
 window.addEventListener("load", function () {
 	(function () {
-		console.log('App script loaded')
 		const app = new App()
 		app.init()
 		window.__spamChecker = app
@@ -15,6 +14,8 @@ class App {
 		accessToken: $('#token'),
 		pageId: $('#page-id'),
 		postIds: $('#post-ids'),
+		safeList: $('#safe-domains'),
+		log: $('#log code'),
 	}
 	data = {
 		pageToken: '',
@@ -29,25 +30,34 @@ class App {
 		try {
 			this.getDataFromLocalStorage()
 			this.domNodes.start.click(() => {
-				console.log('====> click')
+
 				this.data = {
 					...this.data,
 					accessToken: this.domNodes.accessToken.val(),
 					pageId: this.domNodes.pageId.val(),
 					postIds: this.domNodes.postIds.val()?.split(','),
+					safeList: this.domNodes.safeList.val()?.split(','),
 				}
 				console.log('App data: ', this.data)
 				this.saveDataToStorage()
 				this.run()
 			})
 		} catch (err) {
-			console.log('Failed to init app. ', err)
+			this.showLog('Failed to init app. ', err)
 		}
 	}
 
 	run = async () => {
 		await this.getFacebookPageAccessToken()
-		this.data.postIds.forEach(this.fetchPostComments);
+		const fetchCommentsPromises = this.data.postIds.map(this.fetchPostComments);
+		await Promise.all(fetchCommentsPromises)
+
+		const scanCommentsPromises = this.data.postIds.map(this.scanPostComments);
+		await Promise.all(scanCommentsPromises)
+	}
+
+	showLog = (log) => {
+		this.domNodes?.log?.append(`\n ${log}`)
 	}
 
 	saveDataToStorage = () => {
@@ -62,6 +72,7 @@ class App {
 		this.domNodes.accessToken.val(this.data.accessToken || "")
 		this.domNodes.pageId.val(this.data.pageId || "")
 		this.domNodes.postIds.val(this.data?.postIds?.join?.(','))
+		this.domNodes.safeList.val(this.data?.safeList?.join?.(','))
 	}
 
 	getFacebookPageAccessToken = () => {
@@ -101,22 +112,9 @@ class App {
 						comments: []
 					}
 
-					this.data.posts?.[postId]?.comments?.push(res?.data)
-					console.log(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
-					for (let cmt of res.data) {
-						// if (!cmt.is_hidden && cmt.can_hide)
-						// 	comments.push([cmt.id, "hide", cmt.message]);
-						// if (cmt.comments) {
-						// 	for (let subcmt of cmt.comments.data) {
-						// 		if (
-						// 			subcmt.can_hide &&
-						// 			subcmt.message.match(/\w{1,63}\.\w{1,5}\//)
-						// 		)
-						// 			comments.push([subcmt.id, "delete", subcmt.message]);
-						// 	}
-						// }
-					}
-
+					this.data.posts[postId].comments = this.data.posts[postId].comments?.concat(res?.data)
+					this.showLog(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
+					return resolve(true)
 					// after =
 					// 	res.paging &&
 					// 		res.paging.cursors.after &&
@@ -128,5 +126,82 @@ class App {
 			);
 		})
 	}
+
+	scanPostComments = (postId) => {
+		this.showLog('=====================================')
+		this.showLog('Scan comments')
+		return new Promise((resolve, reject) => {
+			const comments = this.data.posts?.[postId]?.comments || []
+			const promises = comments.map(async cmt => {
+				// this.showLog('Checking comment: ', cmt.id)
+				if (!cmt.is_hidden && cmt.can_hide) {
+					if (this.isCommentSpam(cmt)) {
+						await this.hideComment(cmt)
+					} else if (cmt.comments) {
+						cmt.comments?.data?.map(async subCmt => {
+							if (this.isCommentSpam(subCmt)) {
+								await this.hideComment(subCmt)
+							}
+						})
+					}
+				}
+			})
+
+			resolve(Promise.all(promises))
+			this.showLog('===================================== Done')
+		})
+	}
+
+	isCommentSpam = (cmt) => {
+		const urls = cmt?.message?.match(/\bhttps?:\/\/\S+/gi)
+		if (urls && Array.isArray(urls)) {
+			console.log(`Comment ${cmt.id} -- has URLs`, urls)
+			let areURLsSafe = true
+			urls.forEach(url => {
+				if (this.data.safeList.indexOf(url) === -1) {
+					this.showLog(`Comment ${cmt.id} -- ${url} is not in safelist`)
+					return areURLsSafe = false
+				}
+			})
+			if (!areURLsSafe) {
+				return true
+			}
+			return false
+		}
+	}
+
+	hideComment = (cmt) => {
+		this.showLog('========> Comment marked as spam. Hide it')
+		return new Promise((resolve, reject) => {
+			FB.api(
+				`/${cmt.id}`,
+				'POST',
+				{ "is_hidden": "true", 'access_token': this.data.pageToken },
+				function (response) {
+					if (response.error) {
+						return reject(response.error)
+					}
+					this.showLog('========> Hide comment cmt.id')
+					return resolve(response)
+				}
+			);
+		})
+	}
+
+	// fetchCommentData = (cmtId) => {
+	// 	return new Promise((resolve, reject) => {
+	// 		FB.api(
+	// 			`/${cmtId}`,
+	// 			"GET",
+	// 			{ fields: "id, message, comment_count, like_count, from { id, name }", access_token: this.data.accessToken },
+	// 			(res) => {
+	// 				if (res.error) {
+	// 					return reject(res.error)
+	// 				}
+	// 				resolve()
+	// 			}
+	// 		);
+	// 	})
+	// }
 }
 
