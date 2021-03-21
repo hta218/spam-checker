@@ -161,8 +161,9 @@ class App {
 			console.log(`Comment ${cmt.id} -- has URLs`, urls, cmt)
 			let areURLsSafe = true
 			urls.forEach(url => {
-				if (this.data.safeList.indexOf(url) === -1) {
-					this.showLog(`Comment ${cmt.id} -- ${url} is not in safelist`)
+				const { origin } = new URL(url)
+				if (this.data.safeList.indexOf(origin) === -1) {
+					this.showLog(`Comment ${cmt.id} -- ${origin} is not in safelist`)
 					return areURLsSafe = false
 				}
 			})
