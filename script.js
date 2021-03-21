@@ -134,13 +134,16 @@ class App {
 			const comments = this.data.posts?.[postId]?.comments || []
 			const promises = comments.map(async cmt => {
 				// this.showLog('Checking comment: ', cmt.id)
+				debugger
 				if (!cmt.is_hidden && cmt.can_hide) {
 					if (this.isCommentSpam(cmt)) {
 						await this.hideComment(cmt)
 					} else if (cmt.comments) {
 						cmt.comments?.data?.map(async subCmt => {
-							if (this.isCommentSpam(subCmt)) {
-								await this.hideComment(subCmt)
+							if (!subCmt.is_hidden && subCmt.can_hide) {
+								if (this.isCommentSpam(subCmt)) {
+									await this.hideComment(subCmt)
+								}
 							}
 						})
 					}
@@ -155,7 +158,7 @@ class App {
 	isCommentSpam = (cmt) => {
 		const urls = cmt?.message?.match(/\bhttps?:\/\/\S+/gi)
 		if (urls && Array.isArray(urls)) {
-			console.log(`Comment ${cmt.id} -- has URLs`, urls)
+			console.log(`Comment ${cmt.id} -- has URLs`, urls, cmt)
 			let areURLsSafe = true
 			urls.forEach(url => {
 				if (this.data.safeList.indexOf(url) === -1) {
