@@ -11,6 +11,7 @@ class App {
 
 	domNodes = {
 		start: $('#start'),
+		stop: $('#stop'),
 		accessToken: $('#token'),
 		pageId: $('#page-id'),
 		postIds: $('#post-ids'),
@@ -35,6 +36,7 @@ class App {
 		try {
 			this.getDataFromLocalStorage()
 			this.domNodes.start.click(() => {
+				this.domNodes.start.attr('disabled', true)
 				clearTimeout(this.restartTimeout)
 
 				this.data = {
@@ -48,6 +50,10 @@ class App {
 				console.log('App data: ', this.data)
 				this.saveDataToStorage()
 				this.run()
+			})
+			this.domNodes.stop.click(() => {
+				clearTimeout(this.restartTimeout)
+				this.domNodes.start.attr('disabled', false)
 			})
 		} catch (err) {
 			this.showLog('Failed to init app. ', err)
@@ -87,6 +93,7 @@ class App {
 		this.domNodes.pageId.val(this.data.pageId || "")
 		this.domNodes.postIds.val(this.data?.postIds?.join?.(','))
 		this.domNodes.safeList.val(this.data?.safeList?.join?.(','))
+		this.domNodes.restartTime.val(this.data?.restartTime || 30)
 	}
 
 	getFacebookPageAccessToken = () => {
