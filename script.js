@@ -67,7 +67,9 @@ class App {
 	}
 
 	showLog = (log) => {
-		this.domNodes?.log?.append(`\n ${log}`)
+		const $log = this.domNodes?.log
+		$log.append(`\n ${log}`)
+		$log?.parent?.().animate({ scrollTop: $log[0]?.scrollHeight || 0 }, 1);
 	}
 
 	saveDataToStorage = () => {
@@ -224,21 +226,5 @@ class App {
 			);
 		})
 	}
-
-	// fetchCommentData = (cmtId) => {
-	// 	return new Promise((resolve, reject) => {
-	// 		FB.api(
-	// 			`/${cmtId}`,
-	// 			"GET",
-	// 			{ fields: "id, message, comment_count, like_count, from { id, name }", access_token: this.data.accessToken },
-	// 			(res) => {
-	// 				if (res.error) {
-	// 					return reject(res.error)
-	// 				}
-	// 				resolve()
-	// 			}
-	// 		);
-	// 	})
-	// }
 }
 
