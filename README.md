@@ -2,7 +2,7 @@
 
 This tool will hide all comment contains links that do not in your safelist in your facebook's post
 
-How to get Token:
+### How to get Token:
 
 1. Open this link https://m.facebook.com/composer/ocelot/async_loader/?publisher=feed&hc_location=ufi
 2. Search for accessToken
