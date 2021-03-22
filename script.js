@@ -38,7 +38,7 @@ class App {
 					pageId: this.domNodes.pageId.val(),
 					postIds: this.domNodes.postIds.val()?.split(','),
 					safeList: this.domNodes.safeList.val()?.split(','),
-					restartTime: Number(this.domNodes.restart-time.val()),
+					restartTime: Number(this.domNodes.restartTime.val()),
 				}
 				console.log('App data: ', this.data)
 				this.saveDataToStorage()
@@ -68,10 +68,12 @@ class App {
 	}
 
 	getDataFromLocalStorage = () => {
+		const { accessToken, pageId, postIds, safeList, restartTime } = JSON.parse(localStorage.getItem(this.storageKey)) || {}
 		this.data = {
 			...this.data,
-			...JSON.parse(localStorage.getItem(this.storageKey)) || {}
+			accessToken, pageId, postIds, safeList, restartTime
 		}
+
 		this.domNodes.accessToken.val(this.data.accessToken || "")
 		this.domNodes.pageId.val(this.data.pageId || "")
 		this.domNodes.postIds.val(this.data?.postIds?.join?.(','))
@@ -103,7 +105,8 @@ class App {
 				"GET",
 				{
 					fields: "can_hide, is_hidden, message, comments { comments, message, can_hide, is_hidden, from }",
-					// after: after,
+					after: '',
+					// after: this?.data?.posts?.[postId]?.after || '',
 					access_token: this.data.pageToken
 				},
 				(res) => {
@@ -112,19 +115,22 @@ class App {
 					}
 					this.data.posts[postId] = this.data.posts[postId] || {
 						id: postId,
-						comments: []
+						comments: [],
+						after: ''
 					}
 
 					this.data.posts[postId].comments = this.data.posts[postId].comments?.concat(res?.data)
+					this.data.posts[postId].after = res?.data?.length ? res?.paging?.cursors?.after : ''
+
 					this.showLog(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
-					return resolve(true)
-					// after =
-					// 	res.paging &&
-					// 		res.paging.cursors.after &&
-					// 		res.data.length > 98
-					// 		? res.paging.cursors.after
-					// 		: "";
-					// hide_comments();
+
+					if (this.data.posts[postId].after) {
+						return resolve(true)
+					} else {
+						this.fetchPostComments(postId)
+					}
+
+					// return resolve(true)
 				}
 			);
 		})
@@ -145,10 +151,29 @@ class App {
 							if (!subCmt.is_hidden && subCmt.can_hide) {
 								if (this.isCommentSpam(subCmt)) {
 									await this.hideComment(subCmt)
+								} else {
+									this.showLog(`
+										Comment --------- ${subCmt.id}-- OK
+										\n Message: ${subCmt.message}`)
 								}
+							} else {
+								this.showLog(`Comment -------------------------- ${subCmt.id} -- Can't hide
+									\n Message: ${subCmt.message}
+									\n Comment is hidden: ${subCmt.is_hidden}
+									\n Comment can hide: ${subCmt.can_hide}
+									\n ----------------------------------------------------------------------------
+								`)
 							}
 						})
 					}
+				} else {
+					// this.showLog(`Comment -- ${cmt.message} -- Can't hide -- Comment is hidden: ${cmt.is_hidden} -- Comment can hide: ${cmt.can_hide}`)
+					this.showLog(`Comment ------------ ${cmt.id} -- OK
+						\n Message: ${cmt.message}
+						\n Comment is hidden: ${cmt.is_hidden}
+						\n Comment can hide: ${cmt.can_hide}
+						\n ----------------------------------------------------------------------------
+					`)
 				}
 			})
 
