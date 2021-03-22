@@ -195,7 +195,8 @@ class App {
 	}
 
 	isCommentSpam = (cmt) => {
-		const urls = cmt?.message?.match(/\bhttps?:\/\/\S+/gi)
+		// const urls = cmt?.message?.match(/\bhttps?:\/\/\S+/gi)
+		const urls = cmt?.message?.match(/((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)/gi)
 		if (urls && Array.isArray(urls)) {
 			console.log(`Comment ${cmt.id} -- has URLs`, urls, cmt)
 			let areURLsSafe = true
