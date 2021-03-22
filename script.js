@@ -149,7 +149,7 @@ class App {
 	}
 
 	scanPostComments = (postId) => {
-		this.showLog(`============================================================================== Scan comments of post ${postId}`)
+		this.showLog(`===================================== Start scan comments of post ${postId}`)
 		return new Promise((resolve, reject) => {
 			const comments = this.data.posts?.[postId]?.comments || []
 			const promises = comments.map(async cmt => {
@@ -181,16 +181,15 @@ class App {
 			})
 
 			resolve(Promise.all(promises))
-			this.showLog(`============================================================================ Finish checking comments of post ${postId}`)
+			this.showLog(`============================ Finish checking comments of post ${postId} \n\n\n\n\n`)
 		})
 	}
 
 	showLogCommentOK = (cmt) => {
-		this.showLog(`Comment ------------ ${cmt.id} -- OK
-			\n Message: ${cmt.message}
-			\n Comment is hidden: ${cmt.is_hidden}
-			\n Comment can hide: ${cmt.can_hide}
-			\n ----------------------------------------------------------------------------
+		this.showLog(`Comment ------------ ${cmt.id} -- PASS
+			\n [Message]: ${cmt.message}
+			\n [Comment IS HIDDEN]: ${cmt.is_hidden}
+			\n [Comment CAN HIDE]: ${cmt.can_hide}
 		`)
 	}
 
@@ -201,7 +200,7 @@ class App {
 			console.log(`Comment ${cmt.id} -- has URLs`, urls, cmt)
 			let areURLsSafe = true
 			urls.forEach(url => {
-				const { origin } = new URL(url)
+				const { origin } = new URL(`https://${url.replace(/https?\:\/\//g, '')}`)
 				if (this.data.safeList.indexOf(origin) === -1) {
 					this.showLog(`Comment ${cmt.id} -- ${origin} is not in safelist`)
 					return areURLsSafe = false
@@ -215,10 +214,6 @@ class App {
 	}
 
 	hideComment = (cmt) => {
-		this.showLog(`========> SPAM FOUND!!!. Hide comment ${cmt.id}`)
-		this.data.spamFound += 1
-		this.domNodes.spamsFound.text(this.data.spamFound)
-
 		return new Promise((resolve, reject) => {
 			FB.api(
 				`/${cmt.id}`,
@@ -228,7 +223,15 @@ class App {
 					if (response.error) {
 						return reject(response.error)
 					}
-					this.showLog(`========> DONE -- comment ${cmt.id} has been hidden!`)
+					this.showLog(`
+						\n ****************************************************************************************
+						\n ========> SPAM FOUND!!!. Hide comment ${cmt.id}
+						\n Comment: ${cmt.message}
+						\n Comment has been hidden
+						\n *****************************************************************************************
+					`)
+					this.data.spamFound += 1
+					this.domNodes.spamsFound.text(this.data.spamFound)
 					return resolve(response)
 				}
 			);
