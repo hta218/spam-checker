@@ -23,6 +23,8 @@ class App {
 		posts: {}
 	}
 
+	restartTimeout = -1
+
 	constructor() {
 		this.data.postIds = Array.from(new Set(this.data?.postIds?.split(',')))
 	}
@@ -31,6 +33,7 @@ class App {
 		try {
 			this.getDataFromLocalStorage()
 			this.domNodes.start.click(() => {
+				clearTimeout(this.restartTimeout)
 
 				this.data = {
 					...this.data,
@@ -56,7 +59,8 @@ class App {
 
 		const scanCommentsPromises = this.data.postIds.map(this.scanPostComments);
 		await Promise.all(scanCommentsPromises)
-		setTimeout(this.run, this.data.restartTime * 1000)
+		this.showLog('=======> DONE -- FISHNISH ALL CHECKING')
+		this.restartTimeout = setTimeout(this.run, this.data.restartTime * 1000)
 	}
 
 	showLog = (log) => {
@@ -98,15 +102,14 @@ class App {
 	}
 
 	fetchPostComments = (postId) => {
-		console.log('Fetching comments of post: ', postId)
+		this.showLog(`Fetching comments of post: ${postId} ..........`)
 		return new Promise((resolve, reject) => {
 			FB.api(
 				`/${this.data.pageId}_${postId}/comments`,
 				"GET",
 				{
 					fields: "can_hide, is_hidden, message, comments { comments, message, can_hide, is_hidden, from }",
-					after: '',
-					// after: this?.data?.posts?.[postId]?.after || '',
+					after: this?.data?.posts?.[postId]?.after || '',
 					access_token: this.data.pageToken
 				},
 				(res) => {
@@ -122,15 +125,12 @@ class App {
 					this.data.posts[postId].comments = this.data.posts[postId].comments?.concat(res?.data)
 					this.data.posts[postId].after = res?.data?.length ? res?.paging?.cursors?.after : ''
 
-					this.showLog(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
-
-					if (this.data.posts[postId].after) {
+					if (!this.data.posts[postId].after) {
+						this.showLog(`Fetched ${this.data.posts?.[postId]?.comments?.length} comments of post ${postId}.`)
 						return resolve(true)
 					} else {
-						this.fetchPostComments(postId)
+						resolve(this.fetchPostComments(postId))
 					}
-
-					// return resolve(true)
 				}
 			);
 		})
@@ -157,29 +157,29 @@ class App {
 										\n Message: ${subCmt.message}`)
 								}
 							} else {
-								this.showLog(`Comment -------------------------- ${subCmt.id} -- Can't hide
-									\n Message: ${subCmt.message}
-									\n Comment is hidden: ${subCmt.is_hidden}
-									\n Comment can hide: ${subCmt.can_hide}
-									\n ----------------------------------------------------------------------------
-								`)
+								this.showLogCommentOK(subCmt)
 							}
 						})
+					} else {
+						this.showLogCommentOK(cmt)
 					}
 				} else {
-					// this.showLog(`Comment -- ${cmt.message} -- Can't hide -- Comment is hidden: ${cmt.is_hidden} -- Comment can hide: ${cmt.can_hide}`)
-					this.showLog(`Comment ------------ ${cmt.id} -- OK
-						\n Message: ${cmt.message}
-						\n Comment is hidden: ${cmt.is_hidden}
-						\n Comment can hide: ${cmt.can_hide}
-						\n ----------------------------------------------------------------------------
-					`)
+					this.showLogCommentOK(cmt)
 				}
 			})
 
 			resolve(Promise.all(promises))
-			this.showLog('===================================== Done')
+			this.showLog(`===================================== Finish checking comments of post ${postId}`)
 		})
+	}
+
+	showLogCommentOK = (cmt) => {
+		this.showLog(`Comment ------------ ${cmt.id} -- OK
+			\n Message: ${cmt.message}
+			\n Comment is hidden: ${cmt.is_hidden}
+			\n Comment can hide: ${cmt.can_hide}
+			\n ----------------------------------------------------------------------------
+		`)
 	}
 
 	isCommentSpam = (cmt) => {
@@ -202,7 +202,7 @@ class App {
 	}
 
 	hideComment = (cmt) => {
-		this.showLog('========> Comment marked as spam. Hide it')
+		this.showLog(`========> SPAM FOUND!!!. Hide comment ${cmt.id}`)
 		return new Promise((resolve, reject) => {
 			FB.api(
 				`/${cmt.id}`,
@@ -212,7 +212,7 @@ class App {
 					if (response.error) {
 						return reject(response.error)
 					}
-					this.showLog('========> Hide comment cmt.id')
+					this.showLog(`========> DONE -- comment ${cmt.id} has been hidden!`)
 					return resolve(response)
 				}
 			);
