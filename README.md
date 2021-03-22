@@ -9,4 +9,4 @@ This tool will hide all comment contains links that do not in your safelist on y
 3. Paste here https://hta218.github.io/spam-checker along with your facebook's `page-id` and `post-ids`
 
 ### Credit
-Original idea belong to @github lephanductrong
+Original idea belongs to @github lephanductrong
