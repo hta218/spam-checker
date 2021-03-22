@@ -17,7 +17,7 @@
 
 <body>
 	<div class="container">
-		<h1>Hide post comments</h1>
+		<h1 class="my-5">Hide spam comments on your Facebook's posts</h1>
 		<div class="form-group">
 			<label>Facebook token*</label>
 			<input type="text" required="required" class="form-control" id="token">
@@ -57,7 +57,10 @@
 		<hr>
 
 		<div class="mt-4">
-			<h3 class="mb-2">Script logs</h3>
+			<div class="mb-2 d-flex justify-content-between">
+				<h3>Script logs</h3>
+				<h3>Spams found: <span id="spams-found">0</span></h3>
+			</div>
 			<pre id="log" style="height: 350px; overflow-y: scroll;">
 				<code class="bash"></code>
 			</pre>

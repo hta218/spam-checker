@@ -17,10 +17,12 @@ class App {
 		safeList: $('#safe-domains'),
 		log: $('#log code'),
 		restartTime: $('#restart-time'),
+		spamsFound: $('#spams-found'),
 	}
 	data = {
 		pageToken: '',
-		posts: {}
+		posts: {},
+		spamFound: 0,
 	}
 
 	restartTimeout = -1
@@ -53,6 +55,7 @@ class App {
 	}
 
 	run = async () => {
+		this.showLog('=======> App starting.......')
 		await this.getFacebookPageAccessToken()
 		const fetchCommentsPromises = this.data.postIds.map(this.fetchPostComments);
 		await Promise.all(fetchCommentsPromises)
@@ -102,7 +105,7 @@ class App {
 	}
 
 	fetchPostComments = (postId) => {
-		this.showLog(`Fetching comments of post: ${postId} ..........`)
+		// this.showLog(`Fetching comments of post: ${postId} ..........`)
 		return new Promise((resolve, reject) => {
 			FB.api(
 				`/${this.data.pageId}_${postId}/comments`,
@@ -137,8 +140,7 @@ class App {
 	}
 
 	scanPostComments = (postId) => {
-		this.showLog('=====================================')
-		this.showLog('Scan comments')
+		this.showLog(`============================================================================== Scan comments of post ${postId}`)
 		return new Promise((resolve, reject) => {
 			const comments = this.data.posts?.[postId]?.comments || []
 			const promises = comments.map(async cmt => {
@@ -147,6 +149,7 @@ class App {
 					if (this.isCommentSpam(cmt)) {
 						await this.hideComment(cmt)
 					} else if (cmt.comments) {
+						this.showLogCommentOK(cmt)
 						cmt.comments?.data?.map(async subCmt => {
 							if (!subCmt.is_hidden && subCmt.can_hide) {
 								if (this.isCommentSpam(subCmt)) {
@@ -169,7 +172,7 @@ class App {
 			})
 
 			resolve(Promise.all(promises))
-			this.showLog(`===================================== Finish checking comments of post ${postId}`)
+			this.showLog(`============================================================================ Finish checking comments of post ${postId}`)
 		})
 	}
 
@@ -203,12 +206,15 @@ class App {
 
 	hideComment = (cmt) => {
 		this.showLog(`========> SPAM FOUND!!!. Hide comment ${cmt.id}`)
+		this.data.spamFound += 1
+		this.domNodes.spamsFound.text(this.data.spamFound)
+
 		return new Promise((resolve, reject) => {
 			FB.api(
 				`/${cmt.id}`,
 				'POST',
 				{ "is_hidden": "true", 'access_token': this.data.pageToken },
-				function (response) {
+				(response) => {
 					if (response.error) {
 						return reject(response.error)
 					}
