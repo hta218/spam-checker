@@ -61,6 +61,7 @@ class App {
 	}
 
 	run = async () => {
+		this.domNodes.log.text('')
 		this.showLog('=======> App starting.......')
 		await this.getFacebookPageAccessToken()
 		const fetchCommentsPromises = this.data.postIds.map(this.fetchPostComments);
@@ -153,13 +154,16 @@ class App {
 		return new Promise((resolve, reject) => {
 			const comments = this.data.posts?.[postId]?.comments || []
 			const promises = comments.map(async cmt => {
-				// this.showLog('Checking comment: ', cmt.id)
+				console.log('======> checking comment: ', cmt.id, cmt.message)
+				console.count('NUMBER OF TOTAL COMMENTS: ')
 				if (!cmt.is_hidden && cmt.can_hide) {
 					if (this.isCommentSpam(cmt)) {
 						await this.hideComment(cmt)
 					} else if (cmt.comments) {
 						this.showLogCommentOK(cmt)
 						cmt.comments?.data?.map(async subCmt => {
+							console.log('======> checking comment: ', subCmt.id, subCmt.message)
+							console.count('NUMBER OF TOTAL COMMENTS: ')
 							if (!subCmt.is_hidden && subCmt.can_hide) {
 								if (this.isCommentSpam(subCmt)) {
 									await this.hideComment(subCmt)
